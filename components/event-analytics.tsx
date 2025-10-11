@@ -47,12 +47,39 @@ export default function EventAnalytics() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !slug) return
-    const regKey = "campus_registrations"
-    const legacyKey = "registrations"
-    const all: Registration[] = JSON.parse(localStorage.getItem(regKey) || "[]").concat(
-      JSON.parse(localStorage.getItem(legacyKey) || "[]"),
-    )
-    setRows(all.filter((r) => r.slug === slug))
+    const flatArr = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("campus_registrations") || "[]")
+      } catch {
+        return []
+      }
+    })() as any[]
+
+    const legacyParsed = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("registrations") || "null")
+      } catch {
+        return null
+      }
+    })()
+
+    const legacySubmissions: any[] = Array.isArray(legacyParsed)
+      ? legacyParsed
+      : legacyParsed && typeof legacyParsed === "object"
+        ? Object.values(legacyParsed).flatMap((v: any) => (v?.submissions as any[]) || [])
+        : []
+
+    const merged = [...flatArr, ...legacySubmissions]
+      .filter((r: any) => r?.slug === slug)
+      .map((r: any) => ({
+        id: r.id || `${r.slug}-${r.email || ""}-${r.ts || Date.now()}`,
+        slug: r.slug,
+        name: r.name,
+        email: r.email,
+        createdAt: r.createdAt || new Date(typeof r.ts === "number" ? r.ts : Date.now()).toISOString(),
+      }))
+
+    setRows(merged)
   }, [slug])
 
   const canSee = useMemo(() => {

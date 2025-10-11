@@ -5,8 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useState } from "react"
+import { addInboxMessage } from "@/lib/data"
 
 export function ContactSection() {
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [message, setMessage] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
   return (
     <Card className="bg-card text-card-foreground">
       <CardHeader>
@@ -27,25 +34,62 @@ export function ContactSection() {
         </div>
         <form
           className="grid gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
-            alert("Thanks! We'll be in touch.")
+            if (!name.trim() || !email.trim() || !message.trim()) return
+            setSubmitting(true)
+            try {
+              await addInboxMessage({
+                id: crypto.randomUUID(),
+                name: name.trim(),
+                email: email.trim(),
+                message: message.trim(),
+                createdAt: new Date().toISOString(),
+              })
+              setName("")
+              setEmail("")
+              setMessage("")
+              alert("Thanks! Your message has been sent.")
+            } catch {
+              alert("Failed to send message. Please try again.")
+            } finally {
+              setSubmitting(false)
+            }
           }}
         >
           <div className="grid gap-1.5">
             <Label htmlFor="contact-name">{"Name"}</Label>
-            <Input id="contact-name" placeholder={"Your name"} required />
+            <Input
+              id="contact-name"
+              placeholder={"Your name"}
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="contact-email">{"Email"}</Label>
-            <Input id="contact-email" type="email" placeholder={"you@university.edu"} required />
+            <Input
+              id="contact-email"
+              type="email"
+              placeholder={"you@university.edu"}
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="contact-message">{"Message"}</Label>
-            <Textarea id="contact-message" placeholder={"How can we help?"} required />
+            <Textarea
+              id="contact-message"
+              placeholder={"How can we help?"}
+              required
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
           </div>
-          <Button type="submit" className="justify-self-start">
-            {"Send Message"}
+          <Button type="submit" className="justify-self-start" disabled={submitting}>
+            {submitting ? "Sending..." : "Send Message"}
           </Button>
         </form>
       </CardContent>

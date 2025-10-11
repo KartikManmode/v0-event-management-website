@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { addVolunteer } from "@/lib/data"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,36 +35,24 @@ export default function VolunteerPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
-    try {
-      // legacy bucket
-      const legKey = "volunteers"
-      const legRaw = localStorage.getItem(legKey)
-      const legStore = legRaw ? JSON.parse(legRaw) : {}
-      if (!legStore[slug]) legStore[slug] = { eventTitle: title, submissions: [] }
-      legStore[slug].submissions.push({ slug, eventTitle: title, name, email, message: message || "", ts: Date.now() })
-      localStorage.setItem(legKey, JSON.stringify(legStore))
-
-      // new bucket
-      const key = "campus_volunteers"
-      const raw = localStorage.getItem(key)
-      const list: Array<{
-        slug: string
-        eventTitle: string
-        name: string
-        email: string
-        message?: string
-        ts: number
-      }> = raw ? JSON.parse(raw) : []
-      list.push({ slug, eventTitle: title, name, email, message: message || "", ts: Date.now() })
-      localStorage.setItem(key, JSON.stringify(list))
-
-      alert("Thanks for volunteering! We'll be in touch.")
-      router.push(slug ? `/events/${slug}` : "/dashboard")
-    } catch {
-      alert("Failed to submit volunteer request. Please try again.")
-    } finally {
-      setSubmitting(false)
-    }
+    ;(async () => {
+      try {
+        await addVolunteer(slug, {
+          slug,
+          eventTitle: title,
+          name,
+          email,
+          message: message || "",
+          ts: Date.now(),
+        })
+        alert("Thanks for volunteering! We'll be in touch.")
+        router.push(slug ? `/events/${slug}` : "/dashboard")
+      } catch {
+        alert("Failed to submit volunteer request. Please try again.")
+      } finally {
+        setSubmitting(false)
+      }
+    })()
   }
 
   return (

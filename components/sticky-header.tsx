@@ -17,6 +17,7 @@ export function StickyHeader() {
   const [canSeeAnalytics, setCanSeeAnalytics] = useState<boolean>(false)
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [isOrganizer, setIsOrganizer] = useState<boolean>(false)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
 
   useEffect(() => {
     try {
@@ -27,8 +28,13 @@ export function StickyHeader() {
         const role = String(parsed?.role || "").toLowerCase()
         setIsAdmin(role === "admin")
         setIsOrganizer(role === "organizer")
+        setIsLoggedIn(true)
+      } else {
+        setIsLoggedIn(false)
       }
-    } catch {}
+    } catch {
+      setIsLoggedIn(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -70,6 +76,13 @@ export function StickyHeader() {
               {"Organize"}
             </Button>
           </Link>
+          {isLoggedIn && (
+            <Link href="/organize/inbox">
+              <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" variant="default">
+                {"Inbox"}
+              </Button>
+            </Link>
+          )}
           {canSeeAnalytics && (
             <Link href="/dashboard/analytics">
               <Button size="sm" className="bg-secondary text-secondary-foreground hover:opacity-95" variant="secondary">

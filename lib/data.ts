@@ -23,6 +23,14 @@ type Suggestion = {
   createdAt: string
 }
 
+type InboxMessage = {
+  id: string
+  name: string
+  email: string
+  message: string
+  createdAt: string
+}
+
 function getLocal<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
@@ -71,63 +79,108 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
 export async function addRegistration(slug: string, reg: Registration) {
   const db = getDb()
   if (db) {
-    await addDoc(collection(db, "events", slug, "registrations"), reg)
-  } else {
-    // legacy store map
-    const legacy = getLocal<Record<string, { eventTitle: string; submissions: Registration[] }>>("registrations", {})
-    if (!legacy[slug]) legacy[slug] = { eventTitle: reg.eventTitle, submissions: [] }
-    legacy[slug].submissions.push(reg)
-    setLocal("registrations", legacy)
-    // flat list for dashboard
-    const flat = getLocal<Registration[]>("campus_registrations", [])
-    flat.push(reg)
-    setLocal("campus_registrations", flat)
+    try {
+      await addDoc(collection(db, "events", slug, "registrations"), reg)
+      return
+    } catch (err) {
+      console.log("[v0] Firestore addRegistration failed; using local fallback:", (err as Error)?.message)
+    }
   }
+  const legacy = getLocal<Record<string, { eventTitle: string; submissions: Registration[] }>>("registrations", {})
+  if (!legacy[slug]) legacy[slug] = { eventTitle: reg.eventTitle, submissions: [] }
+  legacy[slug].submissions.push(reg)
+  setLocal("registrations", legacy)
+
+  const id =
+    typeof crypto !== "undefined" && (crypto as any).randomUUID
+      ? (crypto as any).randomUUID()
+      : String(reg.ts || Date.now())
+  const createdAt = new Date(reg.ts || Date.now()).toISOString()
+
+  const flat = getLocal<any[]>("campus_registrations", [])
+  flat.push({ ...reg, id, createdAt }) // keep extra fields for analytics component
+  setLocal("campus_registrations", flat)
 }
 
 export async function listRegistrations(slug: string): Promise<Registration[]> {
   const db = getDb()
   if (db) {
-    const qs = await getDocs(query(collection(db, "events", slug, "registrations"), orderBy("ts", "asc")))
-    return qs.docs.map((d) => d.data() as Registration)
+    try {
+      const qs = await getDocs(query(collection(db, "events", slug, "registrations"), orderBy("ts", "asc")))
+      return qs.docs.map((d) => d.data() as Registration)
+    } catch (err) {
+      console.log("[v0] Firestore listRegistrations failed; using local fallback:", (err as Error)?.message)
+    }
   }
   const legacy = getLocal<Record<string, { submissions: Registration[] }>>("registrations", {})
-  return legacy[slug]?.submissions || []
+  const flat = getLocal<any[]>("campus_registrations", [])
+  const flatForSlug: Registration[] = flat
+    .filter((r) => r?.slug === slug)
+    .map((r) => ({
+      slug: r.slug,
+      eventTitle: r.eventTitle,
+      name: r.name,
+      email: r.email,
+      message: r.message,
+      ts: typeof r.ts === "number" ? r.ts : Date.parse(r.createdAt || "") || Date.now(),
+    }))
+  return [...(legacy[slug]?.submissions || []), ...flatForSlug].sort((a, b) => a.ts - b.ts)
 }
 
 export async function addVolunteer(slug: string, vol: Volunteer) {
   const db = getDb()
   if (db) {
-    await addDoc(collection(db, "events", slug, "volunteers"), vol)
-  } else {
-    const legacy = getLocal<Record<string, { eventTitle: string; submissions: Volunteer[] }>>("volunteers", {})
-    if (!legacy[slug]) legacy[slug] = { eventTitle: vol.eventTitle, submissions: [] }
-    legacy[slug].submissions.push(vol)
-    setLocal("volunteers", legacy)
-
-    const flat = getLocal<Volunteer[]>("campus_volunteers", [])
-    flat.push(vol)
-    setLocal("campus_volunteers", flat)
+    try {
+      await addDoc(collection(db, "events", slug, "volunteers"), vol)
+      return
+    } catch (err) {
+      console.log("[v0] Firestore addVolunteer failed; using local fallback:", (err as Error)?.message)
+    }
   }
+  const legacy = getLocal<Record<string, { eventTitle: string; submissions: Volunteer[] }>>("volunteers", {})
+  if (!legacy[slug]) legacy[slug] = { eventTitle: vol.eventTitle, submissions: [] }
+  legacy[slug].submissions.push(vol)
+  setLocal("volunteers", legacy)
+  const flat = getLocal<Volunteer[]>("campus_volunteers", [])
+  flat.push(vol)
+  setLocal("campus_volunteers", flat)
 }
 
 export async function addSuggestion(slug: string, s: Suggestion) {
   const db = getDb()
-  if (db) {
-    await addDoc(collection(db, "events", slug, "suggestions"), s)
-  } else {
-    const key = `campus_suggestions_${slug}`
-    const arr = getLocal<Suggestion[]>(key, [])
-    arr.unshift(s)
-    setLocal(key, arr)
+  const withId: Suggestion = {
+    id:
+      s.id ||
+      (typeof crypto !== "undefined" && (crypto as any).randomUUID ? (crypto as any).randomUUID() : String(Date.now())),
+    slug,
+    message: s.message,
+    authorEmail: s.authorEmail,
+    authorName: s.authorName,
+    createdAt: s.createdAt || new Date().toISOString(),
   }
+  if (db) {
+    try {
+      await addDoc(collection(db, "events", slug, "suggestions"), withId)
+      return
+    } catch (err) {
+      console.log("[v0] Firestore addSuggestion failed; using local fallback:", (err as Error)?.message)
+    }
+  }
+  const key = `campus_suggestions_${slug}`
+  const arr = getLocal<Suggestion[]>(key, [])
+  arr.unshift(withId)
+  setLocal(key, arr)
 }
 
 export async function listSuggestions(slug: string): Promise<Suggestion[]> {
   const db = getDb()
   if (db) {
-    const qs = await getDocs(query(collection(db, "events", slug, "suggestions"), orderBy("createdAt", "desc")))
-    return qs.docs.map((d) => d.data() as Suggestion)
+    try {
+      const qs = await getDocs(query(collection(db, "events", slug, "suggestions"), orderBy("createdAt", "desc")))
+      return qs.docs.map((d) => d.data() as Suggestion)
+    } catch (err) {
+      console.log("[v0] Firestore listSuggestions failed; using local fallback:", (err as Error)?.message)
+    }
   }
   return getLocal<Suggestion[]>(`campus_suggestions_${slug}`, [])
 }
@@ -135,24 +188,32 @@ export async function listSuggestions(slug: string): Promise<Suggestion[]> {
 export async function addOrganizer(slug: string, email: string, name?: string) {
   const db = getDb()
   if (db) {
-    await setDoc(doc(db, "events", slug, "organizers", email), {
-      email,
-      name: name || null,
-      addedAt: Date.now(),
-    })
-  } else {
-    const key = `event_organizers_${slug}`
-    const arr = new Set(getLocal<string[]>(key, []))
-    arr.add(email)
-    setLocal(key, Array.from(arr))
+    try {
+      await setDoc(doc(db, "events", slug, "organizers", email), {
+        email,
+        name: name || null,
+        addedAt: Date.now(),
+      })
+      return
+    } catch (err) {
+      console.log("[v0] Firestore addOrganizer failed; using local fallback:", (err as Error)?.message)
+    }
   }
+  const key = `event_organizers_${slug}`
+  const arr = new Set(getLocal<string[]>(key, []))
+  arr.add(email)
+  setLocal(key, Array.from(arr))
 }
 
 export async function listOrganizers(slug: string): Promise<string[]> {
   const db = getDb()
   if (db) {
-    const qs = await getDocs(collection(db, "events", slug, "organizers"))
-    return qs.docs.map((d) => (d.data() as any).email as string)
+    try {
+      const qs = await getDocs(collection(db, "events", slug, "organizers"))
+      return qs.docs.map((d) => (d.data() as any).email as string)
+    } catch (err) {
+      console.log("[v0] Firestore listOrganizers failed; using local fallback:", (err as Error)?.message)
+    }
   }
   return getLocal<string[]>(`event_organizers_${slug}`, [])
 }
@@ -160,14 +221,47 @@ export async function listOrganizers(slug: string): Promise<string[]> {
 export async function listUserEvents(creatorId: string): Promise<EventItem[]> {
   const db = getDb()
   if (db) {
-    const qs = await getDocs(query(collection(db, "events"), where("creatorId", "==", creatorId)))
-    return qs.docs.map((d) => d.data() as EventItem)
+    try {
+      const qs = await getDocs(query(collection(db, "events"), where("creatorId", "==", creatorId)))
+      return qs.docs.map((d) => d.data() as EventItem)
+    } catch (err) {
+      console.log("[v0] Firestore listUserEvents failed; using local fallback:", (err as Error)?.message)
+    }
   }
   const userEvents = getLocal<EventItem[]>("user_events", [])
   return userEvents.filter((e: any) => e.creatorId === creatorId)
 }
 
-export type { Registration, Volunteer, Suggestion }
+export async function addInboxMessage(m: InboxMessage) {
+  const db = getDb()
+  if (db) {
+    try {
+      await addDoc(collection(db, "messages"), m)
+      return
+    } catch (err) {
+      console.log("[v0] Firestore addInboxMessage failed; using local fallback:", (err as Error)?.message)
+    }
+  }
+  const key = "campus_messages"
+  const arr = getLocal<InboxMessage[]>(key, [])
+  arr.unshift(m)
+  setLocal(key, arr)
+}
+
+export async function listInboxMessages(): Promise<InboxMessage[]> {
+  const db = getDb()
+  if (db) {
+    try {
+      const qs = await getDocs(query(collection(db, "messages"), orderBy("createdAt", "desc")))
+      return qs.docs.map((d) => d.data() as InboxMessage)
+    } catch (err) {
+      console.log("[v0] Firestore listInboxMessages failed; using local fallback:", (err as Error)?.message)
+    }
+  }
+  return getLocal<InboxMessage[]>("campus_messages", [])
+}
+
+export type { Registration, Volunteer, Suggestion, InboxMessage }
 
 export function usingFirestore(): boolean {
   try {

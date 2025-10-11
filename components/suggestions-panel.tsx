@@ -70,6 +70,10 @@ export default function SuggestionsPanel({
   const canSeeList = useMemo(() => !!isOrganizer, [isOrganizer])
 
   async function onSubmit() {
+    if (!slug) {
+      alert("Unable to submit suggestion: missing event slug.")
+      return
+    }
     if (!message.trim()) return
     setSubmitting(true)
     const entry = {
