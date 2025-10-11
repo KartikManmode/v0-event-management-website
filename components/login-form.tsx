@@ -34,7 +34,7 @@ export function OnboardingForm() {
   return (
     <Card className="bg-card text-card-foreground shadow-md border">
       <CardHeader>
-        <CardTitle className="text-center">{"Enter Portal"}</CardTitle>
+        <CardTitle className="text-center">{""}</CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="grid gap-4">
@@ -69,9 +69,9 @@ export function OnboardingForm() {
               required
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="course">{"Course"}</Label>
-            <Input
+          <div className="grid gap-2 py-[11px] my-[-1px]">
+            <Label className="my-[-2px]" htmlFor="course">{"Course"}</Label>
+            <Input className="px-2.5 my-0.5"
               id="course"
               value={course}
               onChange={(e) => setCourse(e.currentTarget.value)}
@@ -83,7 +83,7 @@ export function OnboardingForm() {
         <CardFooter className="flex flex-col gap-3">
           <Button
             type="submit"
-            className="w-full text-primary-foreground"
+            className="w-full text-primary-foreground my-[19px]"
             style={{
               backgroundImage: "linear-gradient(90deg, var(--color-primary), var(--color-chart-2))",
             }}

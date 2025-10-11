@@ -5,44 +5,44 @@
 
 :root {
   /* Updated to midnight blue, mint, magenta color palette with neutral tones */
-  --background: #ffffff;
-  --foreground: #0b1e3f; /* midnight blue for text */
+  --background: rgb(255, 255, 255);
+  --foreground: rgb(11, 30, 63); /* midnight blue for text */
 
-  --card: #ffffff;
+  --card: rgb(255, 255, 255);
   --card-foreground: #0b1e3f;
 
-  --popover: #ffffff;
+  --popover: rgb(255, 255, 255);
   --popover-foreground: #0b1e3f;
 
-  --primary: #0b1e3f; /* midnight blue */
+  --primary: rgb(11, 30, 63); /* midnight blue */
   --primary-foreground: #ffffff;
 
-  --secondary: #2ed6a1; /* mint */
+  --secondary: rgb(46, 214, 161); /* mint */
   --secondary-foreground: #0b1e3f;
 
-  --muted: #f3f6fb; /* soft neutral surface */
+  --muted: rgb(243, 246, 251); /* soft neutral surface */
   --muted-foreground: #334155;
 
-  --accent: #e10098; /* magenta */
+  --accent: rgb(225, 0, 152); /* magenta */
   --accent-foreground: #ffffff;
 
-  --destructive: #e11d48;
+  --destructive: rgb(225, 29, 72);
   --destructive-foreground: #ffffff;
 
-  --border: #e6eaf0;
-  --input: #e6eaf0;
-  --ring: #0b1e3f;
+  --border: rgb(230, 234, 240);
+  --input: rgb(230, 234, 240);
+  --ring: rgb(11, 30, 63);
 
   /* Charts mapped to brand colors */
-  --chart-1: #0b1e3f; /* midnight blue */
-  --chart-2: #2ed6a1; /* mint */
-  --chart-3: #e10098; /* magenta */
-  --chart-4: #94a3b8; /* neutral gray */
-  --chart-5: #1f2937; /* deep neutral */
+  --chart-1: rgb(11, 30, 63); /* midnight blue */
+  --chart-2: rgb(46, 214, 161); /* mint */
+  --chart-3: rgb(225, 0, 152); /* magenta */
+  --chart-4: rgb(148, 163, 184); /* neutral gray */
+  --chart-5: rgb(31, 41, 55); /* deep neutral */
 
-  --radius: 0.75rem;
+  --radius: 12px;
 
-  --sidebar: #ffffff;
+  --sidebar: rgb(255, 255, 255);
   --sidebar-foreground: #0b1e3f;
   --sidebar-primary: #0b1e3f;
   --sidebar-primary-foreground: #ffffff;

@@ -21,6 +21,7 @@ import Image from "next/image"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { saveEvent } from "@/lib/data"
 
 const PRESET_TAGS = [
   "Technology",
@@ -142,19 +143,17 @@ export default function OrganizePage() {
         requiresRegistration: true,
       },
     }
-
-    try {
-      const stored = localStorage.getItem("user_events")
-      const events = stored ? JSON.parse(stored) : []
-      events.push(newEvent)
-      localStorage.setItem("user_events", JSON.stringify(events))
-      alert("Event created successfully!")
-      router.push("/dashboard")
-    } catch {
-      alert("Failed to create event. Please try again.")
-    } finally {
-      setLoading(false)
-    }
+    ;(async () => {
+      try {
+        await saveEvent(newEvent as any)
+        alert("Event created successfully!")
+        router.push("/dashboard")
+      } catch (err) {
+        alert("Failed to create event. Please try again.")
+      } finally {
+        setLoading(false)
+      }
+    })()
   }
 
   return (
@@ -369,7 +368,9 @@ export default function OrganizePage() {
                             <TableCell>{ev?.title || r.slug}</TableCell>
                             <TableCell>{r.name}</TableCell>
                             <TableCell>{r.email}</TableCell>
-                            <TableCell>{new Date(r.createdAt || Date.now()).toLocaleString()}</TableCell>
+                            <TableCell>
+                              {new Date((r as any).ts || (r as any).createdAt || Date.now()).toLocaleString()}
+                            </TableCell>
                           </TableRow>
                         )
                       })}

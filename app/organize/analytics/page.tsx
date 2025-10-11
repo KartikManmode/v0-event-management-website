@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { events, type EventItem } from "@/lib/events"
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { listRegistrations } from "@/lib/data"
 
 type RegStore = {
   [slug: string]: {
@@ -15,22 +16,26 @@ type RegStore = {
   }
 }
 
-function useRegistrations() {
+function useHybridRegistrations(slugs: string[], titles: Record<string, string>) {
   const [store, setStore] = useState<RegStore>({})
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("registrations")
-      setStore(raw ? JSON.parse(raw) : {})
-    } catch {
-      setStore({})
+    let cancelled = false
+    ;(async () => {
+      const acc: RegStore = {}
+      for (const slug of slugs) {
+        const subs = await listRegistrations(slug)
+        acc[slug] = { eventTitle: titles[slug] || slug, submissions: subs }
+      }
+      if (!cancelled) setStore(acc)
+    })()
+    return () => {
+      cancelled = true
     }
-  }, [])
+  }, [slugs.join("|")])
   return store
 }
 
 export default function AnalyticsPage() {
-  const store = useRegistrations()
-
   const [role, setRole] = useState<"admin" | "volunteer" | "guest">("guest")
   const [userId, setUserId] = useState<string | null>(null)
   useEffect(() => {
@@ -59,9 +64,14 @@ export default function AnalyticsPage() {
   const allowedEvents: EventItem[] = useMemo(() => {
     if (role === "admin") return [...userEvents, ...staticEvents]
     if (!userId) return []
-    // volunteers: only events they created
     return (userEvents as any[]).filter((e) => e.creatorId === userId) as EventItem[]
   }, [role, userId, userEvents])
+
+  const titlesMap = useMemo(() => Object.fromEntries(allowedEvents.map((e) => [e.slug, e.title])), [allowedEvents])
+  const store = useHybridRegistrations(
+    allowedEvents.map((e) => e.slug),
+    titlesMap,
+  )
 
   const [selected, setSelected] = useState<string>("")
   useEffect(() => {

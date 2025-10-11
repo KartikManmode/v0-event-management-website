@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { notFound } from "next/navigation"
 import { useState, useEffect } from "react"
@@ -13,6 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ExternalLink, CalendarDays, MapPin, Clock, Ticket } from "lucide-react"
+import SuggestionsPanel from "@/components/suggestions-panel"
+import AddOrganizer from "@/components/add-organizer"
+import EventAnalytics from "@/components/event-analytics"
+import { addRegistration, addVolunteer } from "@/lib/data"
 
 export default function EventDetailPage({ params }: { params: { slug: string } }) {
   const [hydrated, setHydrated] = useState(false)
@@ -21,6 +25,13 @@ export default function EventDetailPage({ params }: { params: { slug: string } }
   const [registrationName, setRegistrationName] = useState("")
   const [registrationEmail, setRegistrationEmail] = useState("")
   const [registrationMessage, setRegistrationMessage] = useState("")
+  const [showVolunteer, setShowVolunteer] = useState(false)
+  const [volunteerName, setVolunteerName] = useState("")
+  const [volunteerEmail, setVolunteerEmail] = useState("")
+  const [volunteerMessage, setVolunteerMessage] = useState("")
+  const router = useRouter()
+  const [regLoading, setRegLoading] = useState(false)
+  const [volLoading, setVolLoading] = useState(false)
 
   useEffect(() => {
     try {
@@ -36,6 +47,24 @@ export default function EventDetailPage({ params }: { params: { slug: string } }
     }
   }, [params.slug])
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("campus_profile")
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (p?.name) {
+          if (!registrationName) setRegistrationName(p.name)
+          if (!volunteerName) setVolunteerName(p.name)
+        }
+        if (p?.email) {
+          if (!registrationEmail) setRegistrationEmail(p.email)
+          if (!volunteerEmail) setVolunteerEmail(p.email)
+        }
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   if (!hydrated) {
     return (
       <main className="min-h-dvh grid place-items-center">
@@ -50,34 +79,59 @@ export default function EventDetailPage({ params }: { params: { slug: string } }
 
   function handleRegister(e: React.FormEvent) {
     e.preventDefault()
-    try {
-      const key = "registrations"
-      const raw = localStorage.getItem(key)
-      const store = raw ? JSON.parse(raw) : {}
-
-      if (!store[event.slug]) {
-        store[event.slug] = { eventTitle: event.title, submissions: [] }
+    setRegLoading(true)
+    ;(async () => {
+      try {
+        await addRegistration(event!.slug, {
+          slug: event!.slug,
+          eventTitle: event!.title,
+          name: registrationName,
+          email: registrationEmail,
+          message: registrationMessage || "",
+          ts: Date.now(),
+        })
+        alert(`Registration submitted for ${event!.title}!`)
+      } catch {
+        alert("Failed to submit registration. Please try again.")
+      } finally {
+        setRegLoading(false)
       }
+      setShowRegistration(false)
+      setRegistrationName("")
+      setRegistrationEmail("")
+      setRegistrationMessage("")
+    })()
+  }
 
-      store[event.slug].submissions.push({
-        slug: event.slug,
-        eventTitle: event.title,
-        name: registrationName,
-        email: registrationEmail,
-        message: registrationMessage || "",
-        ts: Date.now(),
-      })
+  function handleVolunteerSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setVolLoading(true)
+    ;(async () => {
+      try {
+        await addVolunteer(event!.slug, {
+          slug: event!.slug,
+          eventTitle: event!.title,
+          name: volunteerName,
+          email: volunteerEmail,
+          message: volunteerMessage || "",
+          ts: Date.now(),
+        })
+        alert(`Thanks for volunteering for ${event!.title}!`)
+      } catch {
+        alert("Failed to submit volunteer request. Please try again.")
+      } finally {
+        setVolLoading(false)
+      }
+      setShowVolunteer(false)
+      setVolunteerName("")
+      setVolunteerEmail("")
+      setVolunteerMessage("")
+    })()
+  }
 
-      localStorage.setItem(key, JSON.stringify(store))
-      alert(`Registration submitted for ${event.title}!`)
-    } catch {
-      alert("Failed to submit registration. Please try again.")
-    }
-
-    setShowRegistration(false)
-    setRegistrationName("")
-    setRegistrationEmail("")
-    setRegistrationMessage("")
+  function scrollToSuggestions() {
+    const el = document.getElementById("suggestions-section")
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   return (
@@ -103,6 +157,29 @@ export default function EventDetailPage({ params }: { params: { slug: string } }
                   {tag}
                 </Badge>
               ))}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                variant="secondary"
+                className="bg-white/15 text-white hover:bg-white/25"
+                onClick={() => router.back()}
+              >
+                {"Back"}
+              </Button>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={scrollToSuggestions}>
+                {"Suggestions"}
+              </Button>
+              <Button
+                variant="outline"
+                className="border-white/40 text-white hover:bg-white/10 bg-transparent"
+                onClick={() =>
+                  router.push(
+                    `/volunteer?slug=${encodeURIComponent(event.slug)}&title=${encodeURIComponent(event.title)}`,
+                  )
+                }
+              >
+                {"Become Volunteer"}
+              </Button>
             </div>
           </div>
         </div>
@@ -216,8 +293,13 @@ export default function EventDetailPage({ params }: { params: { slug: string } }
                       rows={3}
                     />
                   </div>
-                  <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
-                    {"Submit Registration"}
+                  <Button
+                    type="submit"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    size="lg"
+                    disabled={regLoading}
+                  >
+                    {regLoading ? "Submitting..." : "Submit Registration"}
                   </Button>
                 </form>
               </CardContent>
@@ -244,6 +326,70 @@ export default function EventDetailPage({ params }: { params: { slug: string } }
             </Card>
           )}
         </aside>
+      </section>
+
+      <section id="suggestions-section" className="mx-auto max-w-6xl px-4 md:px-6 pb-6">
+        <SuggestionsPanel titleHint={event.title} />
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 md:px-6 pb-6">
+        <AddOrganizer />
+      </section>
+
+      {/* Volunteer Form */}
+      {showVolunteer && (
+        <section className="mx-auto max-w-6xl px-4 md:px-6 pb-10">
+          <Card className="bg-card text-card-foreground border-2 shadow-lg">
+            <CardContent className="pt-6">
+              <h2 className="text-2xl font-bold mb-4">{"Volunteer for this Event"}</h2>
+              <form onSubmit={handleVolunteerSubmit} className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="vol-name">{"Full Name"}</Label>
+                  <Input
+                    id="vol-name"
+                    value={volunteerName}
+                    onChange={(e) => setVolunteerName(e.currentTarget.value)}
+                    placeholder={"Your name"}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="vol-email">{"Email"}</Label>
+                  <Input
+                    id="vol-email"
+                    type="email"
+                    value={volunteerEmail}
+                    onChange={(e) => setVolunteerEmail(e.currentTarget.value)}
+                    placeholder={"you@university.edu"}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="vol-message">{"Tell us how you’d like to help (optional)"}</Label>
+                  <Textarea
+                    id="vol-message"
+                    value={volunteerMessage}
+                    onChange={(e) => setVolunteerMessage(e.currentTarget.value)}
+                    placeholder={"Availability, skills, interests..."}
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                  size="lg"
+                  disabled={volLoading}
+                >
+                  {volLoading ? "Submitting..." : "Submit Volunteer Request"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      <section className="mx-auto max-w-6xl px-4 md:px-6 pb-12">
+        <EventAnalytics />
       </section>
     </main>
   )
